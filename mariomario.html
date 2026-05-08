@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mario vs Peach: Phonics Battle (Pro Fix)</title>
+    <style>
+        :root { --gold: #f1c40f; --ocean: #130f40; --accent: #16a085; }
+        body {
+            margin: 0; font-family: 'Arial Rounded MT Bold', sans-serif;
+            background: var(--ocean); background-size: cover; background-position: center;
+            color: white; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh;
+        }
+
+        /* --- SETUP SCREEN --- */
+        #setup-screen {
+            position: fixed; inset: 0; background: #2c3e50; z-index: 500;
+            display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto;
+        }
+        .admin-bar { background: var(--accent); padding: 20px; border-radius: 15px; width: 95%; display: flex; gap: 20px; justify-content: center; align-items: center; margin-bottom: 20px; }
+        .setup-group { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px; width: 95%; max-width: 1100px; }
+        .row { display: flex; gap: 15px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+        label { font-size: 12px; color: var(--gold); font-weight: bold; display: block; margin-bottom: 5px; }
+        
+        .img-preview { 
+            width: 60px; height: 60px; border-radius: 5px; 
+            object-fit: contain; background: #444; border: 2px solid white; 
+        }
+
+        /* --- GAME UI --- */
+        #game-ui { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
+        .game-container { display: flex; justify-content: space-around; align-items: center; width: 100%; flex-grow: 1; padding: 20px; }
+        .side-player { width: 220px; text-align: center; }
+        .char-pic { width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5)); }
+        .player-box { padding: 15px; border-radius: 15px; border: 5px solid #fff; background: rgba(0,0,0,0.7); font-size: 20px; margin-top: 10px; }
+        .player-box.active { border-color: var(--gold); background: rgba(241, 196, 15, 0.3); transform: scale(1.1); }
+
+        .grid { 
+            display: grid; grid-template-columns: repeat(4, 140px); grid-template-rows: repeat(4, 140px); 
+            gap: 15px; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 20px;
+        }
+        .card { width: 140px; height: 140px; cursor: pointer; position: relative; transform-style: preserve-3d; transition: 0.4s; }
+        .card.flipped { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 15px; border: 4px solid #000; font-size: 22px; text-align: center; padding: 10px; box-sizing: border-box;
+        }
+        .card-front { background: #e74c3c; color: white; border-color: #fff; }
+        .card-back { background: #f1c40f; color: #000; transform: rotateY(180deg); }
+        .item-img { width: 90px; height: 90px; object-fit: contain; }
+
+        #turn-msg { margin: 15px 0; font-size: 28px; background: rgba(0,0,0,0.8); padding: 10px 60px; border-radius: 50px; border: 3px solid var(--gold); }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        #win-img-display { width: 350px; height: 350px; object-fit: contain; }
+        .btn { padding: 15px 40px; font-size: 22px; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body onclick="unlockAudio()">
+
+    <audio id="win-snd"></audio>
+    <audio id="bomb-snd"></audio>
+    <audio id="bgm-snd" loop></audio>
+
+    <div id="setup-screen">
+        <h1 style="color:var(--gold); font-size: 40px; margin-bottom: 10px;">Mario vs Peach Phonics</h1>
+        
+        <div class="admin-bar">
+            <button class="btn" style="background: #fff; color: #333;" onclick="exportJSON()">💾 SAVE LESSON (JSON)</button>
+            <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; border: 1px dashed white;">
+                <label style="color:white; margin:0;">📂 LOAD LESSON:</label>
+                <input type="file" id="load-file" accept=".json" onchange="importJSON(event)">
+            </div>
+        </div>
+
+        <div class="setup-group">
+            <h3>1. Visuals</h3>
+            <div class="row">
+                <div><label>Mario</label><input type="file" class="file-in" data-id="prev-p1" accept="image/*"><img id="prev-p1" class="img-preview"></div>
+                <div><label>Peach</label><input type="file" class="file-in" data-id="prev-p2" accept="image/*"><img id="prev-p2" class="img-preview"></div>
+                <div><label>BG</label><input type="file" class="file-in" data-id="prev-bg" accept="image/*"><img id="prev-bg" class="img-preview"></div>
+                <div><label>Coin</label><input type="file" class="file-in" data-id="prev-coin" accept="image/*"><img id="prev-coin" class="img-preview"></div>
+                <div><label>Bomb</label><input type="file" class="file-in" data-id="prev-bomb" accept="image/*"><img id="prev-bomb" class="img-preview"></div>
+            </div>
+        </div>
+
+        <div class="setup-group">
+            <h3>2. Audio</h3>
+            <div class="row">
+                <div><label>Coin (Win)</label><input type="file" class="file-in" data-id="win-snd" accept="audio/*"></div>
+                <div><label>Bomb</label><input type="file" class="file-in" data-id="bomb-snd" accept="audio/*"></div>
+                <div><label>Music</label><input type="file" class="file-in" data-id="bgm-snd" accept="audio/*"></div>
+            </div>
+        </div>
+
+        <div class="setup-group">
+            <h3>3. Words</h3>
+            <textarea id="words-in" style="width:100%; height:60px; border-radius:10px; padding:10px; font-size:16px;">apple, ant, axe, bat, ball, boy, cat, cup, cap, dog, dig, dot, egg, elf, fan, fish</textarea>
+        </div>
+
+        <button id="start-btn" onclick="startGame()" class="btn" style="background:#2ecc71; color: white; width:400px; height:80px; font-size: 30px; margin-top:20px;">START BATTLE</button>
+    </div>
+
+    <div id="game-ui">
+        <h1 style="text-shadow: 4px 4px #000; font-size: 40px; margin: 15px 0;">PHONICS BATTLE</h1>
+        <div class="game-container">
+            <div class="side-player">
+                <img id="p1-display" src="" class="char-pic">
+                <div id="p1-box" class="player-box active">Mario: <span id="p1-c">0</span> | 💣 <span id="p1-b">0</span></div>
+            </div>
+            <div class="grid" id="game-grid"></div>
+            <div class="side-player">
+                <img id="p2-display" src="" class="char-pic">
+                <div id="p2-box" class="player-box">Peach: <span id="p2-c">0</span> | 💣 <span id="p2-b">0</span></div>
+            </div>
+        </div>
+        <div id="turn-msg">MARIO'S TURN</div>
+    </div>
+
+    <div id="win-overlay" class="overlay">
+        <img id="win-img-display" src="">
+        <h2 id="win-txt" style="font-size: 60px; color: var(--gold); margin: 10px 0;">MARIO WINS!</h2>
+        <button class="btn" style="background:#2ecc71; color:white;" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+
+    <script>
+        let currentPlayer = "Mario", stats = {}, gameActive = true, audioUnlocked = false;
+        let vault = { coin: "", bomb: "", bg: "", p1: "", p2: "", winS: "", bombS: "", bgmS: "" };
+
+        const toBase64 = file => new Promise(res => {
+            const reader = new FileReader(); reader.readAsDataURL(file);
+            reader.onload = () => res(reader.result);
+        });
+
+        // Handle ALL inputs (Images and Audio)
+        document.querySelectorAll('.file-in').forEach(input => {
+            input.onchange = async (e) => {
+                if(!e.target.files[0]) return;
+                const targetId = input.getAttribute('data-id');
+                const b64 = await toBase64(e.target.files[0]);
+                
+                const el = document.getElementById(targetId);
+                if(el.tagName === "IMG") el.src = b64;
+                if(el.tagName === "AUDIO") el.src = b64;
+                
+                // Keep Vault updated
+                updateVault();
+            };
+        });
+
+        function updateVault() {
+            vault.p1 = document.getElementById('prev-p1').src;
+            vault.p2 = document.getElementById('prev-p2').src;
+            vault.bg = document.getElementById('prev-bg').src;
+            vault.coin = document.getElementById('prev-coin').src;
+            vault.bomb = document.getElementById('prev-bomb').src;
+            vault.winS = document.getElementById('win-snd').src;
+            vault.bombS = document.getElementById('bomb-snd').src;
+            vault.bgmS = document.getElementById('bgm-snd').src;
+        }
+
+        function unlockAudio() {
+            if(audioUnlocked) return;
+            ['win-snd', 'bomb-snd', 'bgm-snd'].forEach(id => {
+                const a = document.getElementById(id);
+                if(a.src && a.src.startsWith('data:')) {
+                    a.play().then(() => { if(id !== 'bgm-snd') { a.pause(); a.currentTime = 0; }});
+                }
+            });
+            audioUnlocked = true;
+        }
+
+        function startGame() {
+            updateVault(); // Final check
+            const words = document.getElementById('words-in').value.split(',').map(w => w.trim()).filter(w => w);
+            if(words.length < 16) return alert("Please enter 16 words!");
+            if(!vault.p1 || !vault.p2 || !vault.coin || !vault.bomb) return alert("Images missing! Please upload them or Load JSON.");
+
+            document.getElementById('p1-display').src = vault.p1;
+            document.getElementById('p2-display').src = vault.p2;
+            if(vault.bg) document.body.style.backgroundImage = `url(${vault.bg})`;
+
+            const bgm = document.getElementById('bgm-snd');
+            if(bgm.src) { bgm.volume = 0.3; bgm.play().catch(() => {}); }
+
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'flex';
+            initGrid(words);
+        }
+
+        function initGrid(words) {
+            stats = { "Mario": { c: 0, b: 0, box: document.getElementById('p1-box') }, "Peach": { c: 0, b: 0, box: document.getElementById('p2-box') } };
+            const items = Array(11).fill("COIN").concat(Array(5).fill("BOMB")).sort(() => Math.random() - 0.5);
+            const gameWords = words.slice(0, 16).sort(() => Math.random() - 0.5);
+            const grid = document.getElementById('game-grid');
+            grid.innerHTML = "";
+
+            gameWords.forEach((word, i) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                const type = items[i];
+                card.innerHTML = `<div class="card-face card-front">${word}</div><div class="card-face card-back"><img src="${type === 'COIN' ? vault.coin : vault.bomb}" class="item-img"></div>`;
+                card.onclick = () => {
+                    if(!gameActive || card.classList.contains('flipped')) return;
+                    card.classList.add('flipped');
+                    if(type === 'BOMB') {
+                        stats[currentPlayer].b++;
+                        const snd = document.getElementById('bomb-snd');
+                        if(snd.src) { snd.currentTime = 0; snd.play(); }
+                    } else {
+                        stats[currentPlayer].c++;
+                        const snd = document.getElementById('win-snd');
+                        if(snd.src) { snd.currentTime = 0; snd.play(); }
+                    }
+                    updateScores();
+                    checkLogic();
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        function updateScores() {
+            document.getElementById('p1-c').innerText = stats["Mario"].c;
+            document.getElementById('p1-b').innerText = stats["Mario"].b;
+            document.getElementById('p2-c').innerText = stats["Peach"].c;
+            document.getElementById('p2-b').innerText = stats["Peach"].b;
+        }
+
+        function checkLogic() {
+            if(stats[currentPlayer].b >= 3) { endGame(currentPlayer === "Mario" ? "Peach" : "Mario"); }
+            else if(document.querySelectorAll('.card.flipped').length === 16) {
+                const winner = stats["Mario"].c >= stats["Peach"].c ? "Mario" : "Peach";
+                endGame(winner);
+            } else {
+                stats[currentPlayer].box.classList.remove('active');
+                currentPlayer = currentPlayer === "Mario" ? "Peach" : "Mario";
+                stats[currentPlayer].box.classList.add('active');
+                document.getElementById('turn-msg').innerText = `${currentPlayer.toUpperCase()}'S TURN`;
+            }
+        }
+
+        function endGame(winner) {
+            gameActive = false;
+            document.getElementById('bgm-snd').pause();
+            const winSnd = document.getElementById('win-snd');
+            if(winSnd.src) { winSnd.currentTime = 0; winSnd.play(); }
+            document.getElementById('win-txt').innerText = winner.toUpperCase() + " WINS!";
+            document.getElementById('win-img-display').src = document.getElementById(winner === "Mario" ? 'p1-display' : 'p2-display').src;
+            document.getElementById('win-overlay').style.display = 'flex';
+        }
+
+        async function exportJSON() {
+            updateVault();
+            const data = { words: document.getElementById('words-in').value, vault: vault };
+            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'MarioPeachGame.json'; a.click();
+        }
+
+        function importJSON(e) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const d = JSON.parse(ev.target.result);
+                document.getElementById('words-in').value = d.words;
+                vault = d.vault;
+                
+                // Force Update Previews
+                document.getElementById('prev-p1').src = vault.p1;
+                document.getElementById('prev-p2').src = vault.p2;
+                document.getElementById('prev-bg').src = vault.bg;
+                document.getElementById('prev-coin').src = vault.coin;
+                document.getElementById('prev-bomb').src = vault.bomb;
+                
+                // Force Update Audio
+                document.getElementById('win-snd').src = vault.winS;
+                document.getElementById('bomb-snd').src = vault.bombS;
+                document.getElementById('bgm-snd').src = vault.bgmS;
+
+                document.getElementById('start-btn').innerText = "GAME READY! START";
+                document.getElementById('start-btn').style.background = "#3498db";
+                alert("Settings Loaded Successfully!");
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+    </script>
+</body>
+</html>
